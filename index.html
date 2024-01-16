@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ShareVideo</title>
+    <style>
+        body {
+            font-family: "Arial", sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>Video Paylaşımı</h2>
+    <input type="file" id="videoInput" accept="video/*">
+    <video id="selectedVideo" controls style="display: none;"></video>
+    <button id="encodeButton" onclick="encodeAndUploadVideo()" title="Videoyu Kodla ve Yükle">Videoyu Kodla ve Yükle 📤</button>
+    <button id="copyButton" onclick="copyLink()" title="Linki Kopyala">Video Linki Kopyala 🔗</button>
+    <div id="result"></div>
+    <script>
+        var selectedVideoElement = document.getElementById('selectedVideo');
+        var encodeButton = document.getElementById('encodeButton');
+        var copyButton = document.getElementById('copyButton');
+
+        // Video input değiştiğinde çalışacak fonksiyon
+        document.getElementById('videoInput').addEventListener('change', function(event) {
+            var selectedFile = event.target.files[0];
+
+            if (selectedFile) {
+                var videoURL = URL.createObjectURL(selectedFile);
+                selectedVideoElement.src = videoURL;
+                selectedVideoElement.style.display = 'block';
+                encodeButton.style.display = 'block';
+            } else {
+                selectedVideoElement.style.display = 'none';
+                encodeButton.style.display = 'none';
+            }
+        });
+
+        // Videoyu Base64'e çevirip gösteren fonksiyon
+        function encodeAndUploadVideo() {
+            var reader = new FileReader();
+            reader.readAsDataURL(document.getElementById('videoInput').files[0]);
+
+            reader.onload = function() {
+                var base64Video = reader.result.split(',')[1];
+                selectedVideoElement.src = 'data:video/' + getVideoType() + ';base64,' + base64Video;
+                copyButton.style.display = 'block';
+
+                // Videoyu JSONBlob'a yükle
+                uploadToJSONBlob(base64Video);
+            };
+        }
+
+        // Video türünü belirleyen fonksiyon
+        function getVideoType() {
+            var fileInput = document.getElementById('videoInput');
+            return fileInput.accept.split('/')[1];
+        }
+
+        // JSONBlob'a videoyu yükleyen fonksiyon
+        function uploadToJSONBlob(content) {
+        var apiUrl = 'https://jsonblob.com/api/jsonBlob';
+        var jsonData = { "content": content };
+
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();  // Yanıtın içeriğini JSON formatına dönüştür
+            } else {
+                throw new Error('Hata: ' + response.statusText);
+            }
+        })
+        .then(data => {
+            // Yanıt içeriğinde _id olup olmadığını kontrol et
+            if (data && data._id) {
+                console.log("JSONBlob ID:", data._id);
+                updateResult(data._id);
+            } else {
+                throw new Error('Hata: JSONBlob ID bulunamadı.');
+            }
+        })
+        .catch(error => {
+            // Hata durumunda kullanıcıya bilgi ver
+            document.getElementById('result').innerHTML = 'Hata oluştu: ' + error.message;
+        });
+    }
+
+        // Sonucu güncelleyen fonksiyon
+        function updateResult(blobId) {
+            var resultElement = document.getElementById('result');
+            resultElement.innerHTML = 'Dosya başarıyla yüklendi. <br> Linkiniz: <a href="https://jsonblob.com/' + blobId + '" target="_blank">https://jsonblob.com/' + blobId + '</a>';
+            resultElement.innerHTML += '<br> Linki kopyalamak için "Linki Kopyala" butonunu kullanabilirsiniz.';
+        }
+
+        // Kopyala butonunu tıklandığında çalışacak fonksiyon
+        function copyLink() {
+            var videoLink = document.createElement('textarea');
+            videoLink.value = document.getElementById('result').getElementsByTagName('a')[0].innerText;
+            document.body.appendChild(videoLink);
+            videoLink.select();
+            document.execCommand('copy');
+            document.body.removeChild(videoLink);
+            alert('Video linki kopyalandı!');
+        }
+    </script>
+</body>
+</html>
